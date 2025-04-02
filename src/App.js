@@ -1,24 +1,24 @@
-import logo from './logo.svg';
-import './App.css';
+import { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
 
 function App() {
+  const [token, setToken] = useState(null);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    // Check for existing token if needed (e.g., from localStorage)
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <AnimatePresence mode="wait">
+      {token ? (
+        <DashboardPage token={token} setToken={setToken} message={message} setMessage={setMessage} />
+      ) : (
+        <LoginPage setToken={setToken} message={message} setMessage={setMessage} />
+      )}
+    </AnimatePresence>
   );
 }
 
