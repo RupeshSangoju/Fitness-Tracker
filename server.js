@@ -20,17 +20,21 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-const auth = (req, res, next) => {
-  const token = req.headers['authorization'];
-  if (!token) return res.status(401).send('No token provided');
-  try {
-    const decoded = jwt.verify(token, 'your-secret-key');
-    req.userId = decoded.id;
-    next();
-  } catch (error) {
-    res.status(401).send('Invalid token');
-  }
-};
+  const auth = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).send('No token provided or invalid format');
+    }
+    const token = authHeader.split(' ')[1]; // Extract token after "Bearer"
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      req.userId = decoded.id;
+      next();
+    } catch (error) {
+      res.status(401).send('Invalid token');
+    }
+  };
+  
 
 app.post('/signup', async (req, res) => {
   const { name, email, password, weight, targetCalories, profilePic } = req.body;
