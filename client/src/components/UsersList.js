@@ -39,7 +39,7 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
       fetchFriends();
       fetchFriendRequests();
     }
-  }, [isExpanded, setIsMinimized, token]);
+  }, [isExpanded, setIsMinimized, token,fetchFriends, fetchFriendRequests]);
 
   const sendFriendRequest = async () => {
     try {
