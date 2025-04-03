@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
 
@@ -11,7 +11,7 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
   const [friendRequests, setFriendRequests] = useState([]);
   const [message, setMessage] = useState('');
 
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async () => {
     try {
       const response = await axios.get(`${backendUrl}/friends`, {
         headers: { Authorization: token }
@@ -20,9 +20,9 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
     } catch (error) {
       setMessage('Failed to fetch friends');
     }
-  };
+  },[token]);
 
-  const fetchFriendRequests = async () => {
+  const fetchFriendRequests = useCallback(async () => {
     try {
       const response = await axios.get(`${backendUrl}/friends/requests`, {
         headers: { Authorization: token }
@@ -31,7 +31,7 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
     } catch (error) {
       setMessage('Failed to fetch friend requests');
     }
-  };
+  },[token]);
 
   useEffect(() => {
     setIsMinimized(!isExpanded);
