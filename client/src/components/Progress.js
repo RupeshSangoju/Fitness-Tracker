@@ -24,7 +24,7 @@ ChartJS.register(
   Legend,
   Filler
 );
-
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
 function Progress({ progress, workouts }) {
   const chartRef = useRef(null); // Ref to hold the canvas element
   const chartInstanceRef = useRef(null); // Ref to hold the Chart.js instance

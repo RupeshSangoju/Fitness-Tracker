@@ -8,6 +8,8 @@ import Progress from '../components/Progress';
 import WorkoutList from '../components/WorkoutList';
 import ExerciseLibrary from '../components/ExerciseLibrary';
 import UsersList from '../components/UsersList';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
+
 
 function DashboardPage({ token, setToken, setMessage }) {
   const [exercise, setExercise] = useState('');

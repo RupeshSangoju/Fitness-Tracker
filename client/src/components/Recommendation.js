@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
+
 
 function Recommendation({ recommendation }) {
   if (!recommendation) return null;

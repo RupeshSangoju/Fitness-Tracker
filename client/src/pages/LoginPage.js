@@ -1,31 +1,33 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 function LoginPage({ setToken, message, setMessage }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(false);
-  const [profile, setProfile] = useState({ weight: '', targetCalories: '', profilePic: '' }); // No default
+  const [profile, setProfile] = useState({ weight: '', targetCalories: '', profilePic: '' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const url = isLogin ? `${backendUrl}/login` : `${backendUrl}/signup`;
+    const payload = isLogin 
+      ? { email, password } 
+      : { name, email, password, ...profile };
+    
     try {
-      const payload = isLogin 
-        ? { email, password } 
-        : { name, email, password, ...profile };
-      const response = await axios.post(url, payload);
+      const response = await axios.post(url, payload); // Define response here
       if (isLogin) {
         setMessage('Login successful!');
-        setToken(response.data.token);
+        setToken(response.data.token); // Use response now that it’s defined
       } else {
         setMessage('Account created! Please log in.');
         setName('');
         setEmail('');
         setPassword('');
-        setProfile({ weight: '', targetCalories: '', profilePic: '' }); // Reset with no default
+        setProfile({ weight: '', targetCalories: '', profilePic: '' });
         setIsLogin(true);
       }
     } catch (error) {
@@ -52,6 +54,7 @@ function LoginPage({ setToken, message, setMessage }) {
         backgroundPosition: 'center'
       }}
     >
+      {/* Rest of your JSX remains unchanged */}
       <div className="absolute inset-0 bg-black opacity-50 z-0"></div>
       <motion.div 
         initial={{ opacity: 0, scale: 0.5 }} 

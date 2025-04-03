@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
+
 
 function WorkoutForm({ exercise, setExercise, reps, setReps, sets, setSets, weight, setWeight, handleWorkoutSubmit }) {
   return (

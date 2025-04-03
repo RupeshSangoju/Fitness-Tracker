@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 import axios from 'axios';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
+
 
 function WorkoutList({ workouts, filter, setFilter, fetchWorkouts, token }) {
   const handleDelete = async (workoutId) => {

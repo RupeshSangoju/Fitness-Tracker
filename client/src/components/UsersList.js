@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
+
 
 function UsersList({ users, currentUserId, setIsMinimized, token }) {
   const [isExpanded, setIsExpanded] = useState(false);

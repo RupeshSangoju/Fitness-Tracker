@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
+
 
 function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShowProfilePrompt, setMessage, setIsMinimized }) {
   const [isExpanded, setIsExpanded] = useState(false);
