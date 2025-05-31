@@ -1,8 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
-
+import api from '../utils/api';
 
 function UsersList({ users, currentUserId, setIsMinimized, token }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -13,25 +11,23 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
 
   const fetchFriends = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/friends`, {
-        headers: { Authorization: token }
-      });
+      const response = await api.get('/friends');
       setFriends(response.data);
     } catch (error) {
+      console.error('Fetch friends error:', error);
       setMessage('Failed to fetch friends');
     }
-  },[token]);
+  }, []);
 
   const fetchFriendRequests = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/friends/requests`, {
-        headers: { Authorization: token }
-      });
+      const response = await api.get('/friends/requests');
       setFriendRequests(response.data);
     } catch (error) {
+      console.error('Fetch friend requests error:', error);
       setMessage('Failed to fetch friend requests');
     }
-  },[token]);
+  }, []);
 
   useEffect(() => {
     setIsMinimized(!isExpanded);
@@ -39,54 +35,58 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
       fetchFriends();
       fetchFriendRequests();
     }
-  }, [isExpanded, setIsMinimized, token,fetchFriends, fetchFriendRequests]);
+  }, [isExpanded, setIsMinimized, token, fetchFriends, fetchFriendRequests]);
 
   const sendFriendRequest = async () => {
     try {
-      await axios.post(`${backendUrl}/friends/request`, { friendName: friendRequest }, {
-        headers: { Authorization: token }
-      });
+      // Find user by name (case-insensitive)
+      const selectedUser = users.find((u) => u.name.toLowerCase() === friendRequest.toLowerCase());
+      if (!selectedUser) {
+        setMessage('User not found');
+        return;
+      }
+      await api.post('/friends/request', { friendId: selectedUser._id });
       setMessage(`Friend request sent to ${friendRequest}`);
       setFriendRequest('');
       fetchFriends();
     } catch (error) {
+      console.error('Send friend request error:', error);
       setMessage('Failed to send friend request');
     }
   };
 
   const acceptFriendRequest = async (friendId) => {
     try {
-      await axios.post(`${backendUrl}/friends/accept`, { friendId }, {
-        headers: { Authorization: token }
-      });
+      await api.post('/friends/accept', { friendId });
       setMessage('Friend request accepted');
       fetchFriends();
       fetchFriendRequests();
     } catch (error) {
+      console.error('Accept friend request error:', error);
       setMessage('Failed to accept friend request');
     }
   };
 
   const listVariants = {
-    collapsed: { 
-      width: '64px', 
-      height: '64px', 
-      borderRadius: '50%', 
-      padding: 0, 
-      transition: { type: 'spring', stiffness: 300, damping: 25 } 
+    collapsed: {
+      width: '64px',
+      height: '64px',
+      borderRadius: '50%',
+      padding: 0,
+      transition: { type: 'spring', stiffness: 300, damping: 25 },
     },
-    expanded: { 
-      width: '100%', 
-      height: 'auto', 
-      borderRadius: '16px', 
-      padding: '1.5rem', 
-      transition: { type: 'spring', stiffness: 300, damping: 25 } 
-    }
+    expanded: {
+      width: '100%',
+      height: 'auto',
+      borderRadius: '16px',
+      padding: '1.5rem',
+      transition: { type: 'spring', stiffness: 300, damping: 25 },
+    },
   };
 
   const contentVariants = {
     hidden: { opacity: 0, y: -20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeInOut' } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeInOut' } },
   };
 
   const worldwideLeaderboard = [...users].sort((a, b) => (b.progress?.caloriesBurned || 0) - (a.progress?.caloriesBurned || 0));
@@ -124,25 +124,29 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
             <div className="mb-6">
               <h4 className="text-lg font-semibold text-gray-700 mb-2">Friends Leaderboard</h4>
               <ul className="space-y-2 max-h-40 overflow-y-auto">
-                {friendsLeaderboard.map(user => (
-                  <li 
-                    key={user._id} 
-                    className={`p-2 rounded-lg flex items-center gap-2 ${user._id === currentUserId ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100'}`}
-                  >
-                    <img
-                      src={user.profile.profilePic || 'https://placehold.co/32x32?text=No+Image'}
-                      alt={user.name}
-                      className="w-8 h-8 rounded-full object-cover"
-                      onError={e => e.target.src = 'https://placehold.co/32x32?text=No+Image'}
-                    />
-                    <div>
-                      <span>{user.name}</span>
-                      <span className="block text-sm text-gray-600">
-                        Calories: {user.progress?.caloriesBurned || 0} cal
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                {friendsLeaderboard.length > 0 ? (
+                  friendsLeaderboard.map((user) => (
+                    <li
+                      key={user._id}
+                      className={`p-2 rounded-lg flex items-center gap-2 ${user._id === currentUserId ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100'}`}
+                    >
+                      <img
+                        src={user.profilePic || 'https://placehold.co/32x32?text=No+Image'}
+                        alt={user.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => (e.target.src = 'https://placehold.co/32x32?text=No+Image')}
+                      />
+                      <div>
+                        <span>{user.name}</span>
+                        <span className="block text-sm text-gray-600">
+                          Calories: {user.progress?.caloriesBurned || 0} cal
+                        </span>
+                      </div>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-gray-700">No friends yet</li>
+                )}
               </ul>
               <div className="mt-2 flex gap-2">
                 <input
@@ -165,7 +169,7 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
               {friendRequests.length > 0 && (
                 <div className="mt-2">
                   <h5 className="text-sm font-semibold text-gray-700">Pending Requests</h5>
-                  {friendRequests.map(request => (
+                  {friendRequests.map((request) => (
                     <div key={request._id} className="flex justify-between items-center p-1">
                       <span>{request.name}</span>
                       <motion.button
@@ -187,25 +191,29 @@ function UsersList({ users, currentUserId, setIsMinimized, token }) {
             <div>
               <h4 className="text-lg font-semibold text-gray-700 mb-2">Worldwide Leaderboard</h4>
               <ul className="space-y-2 max-h-40 overflow-y-auto">
-                {worldwideLeaderboard.map(user => (
-                  <li 
-                    key={user._id} 
-                    className={`p-2 rounded-lg flex items-center gap-2 ${user._id === currentUserId ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100'}`}
-                  >
-                    <img
-                      src={user.profile.profilePic || 'https://placehold.co/32x32?text=No+Image'}
-                      alt={user.name}
-                      className="w-8 h-8 rounded-full object-cover"
-                      onError={e => e.target.src = 'https://placehold.co/32x32?text=No+Image'}
-                    />
-                    <div>
-                      <span>{user.name}</span>
-                      <span className="block text-sm text-gray-600">
-                        Calories: {user.progress?.caloriesBurned || 0} cal
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                {worldwideLeaderboard.length > 0 ? (
+                  worldwideLeaderboard.map((user) => (
+                    <li
+                      key={user._id}
+                      className={`p-2 rounded-lg flex items-center gap-2 ${user._id === currentUserId ? 'bg-blue-100 text-blue-700 font-semibold' : 'bg-gray-100'}`}
+                    >
+                      <img
+                        src={user.profilePic || 'https://placehold.co/32x32?text=No+Image'}
+                        alt={user.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => (e.target.src = 'https://placehold.co/32x32?text=No+Image')}
+                      />
+                      <div>
+                        <span>{user.name}</span>
+                        <span className="block text-sm text-gray-600">
+                          Calories: {user.progress?.caloriesBurned || 0} cal
+                        </span>
+                      </div>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-gray-700">No users available</li>
+                )}
               </ul>
             </div>
           </motion.div>

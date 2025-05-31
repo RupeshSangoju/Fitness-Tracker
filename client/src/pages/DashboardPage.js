@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../utils/api'; // Use new api instance
 import ProfileSidebar from '../components/ProfileSidebar';
 import WorkoutForm from '../components/WorkoutForm';
 import Recommendation from '../components/Recommendation';
@@ -8,8 +8,6 @@ import Progress from '../components/Progress';
 import WorkoutList from '../components/WorkoutList';
 import ExerciseLibrary from '../components/ExerciseLibrary';
 import UsersList from '../components/UsersList';
-const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
-
 
 function DashboardPage({ token, setToken, setMessage }) {
   const [exercise, setExercise] = useState('');
@@ -41,85 +39,106 @@ function DashboardPage({ token, setToken, setMessage }) {
 
   const handleWorkoutSubmit = async (e) => {
     e.preventDefault();
+    if (!exercise || !reps || !sets || reps < 0 || sets < 0 || (weight && weight < 0)) {
+      setMessage('Please enter valid workout details');
+      return;
+    }
     try {
-      await axios.post(`${backendUrl}/workouts`, { exercise, reps, sets, weight }, {
-        headers: { Authorization: token }
-      });
+      await api.post(
+        '/exercise/log',
+        { exercise, reps: Number(reps), sets: Number(sets), weight: weight ? Number(weight) : undefined },
+      );
       setExercise('');
       setReps('');
       setSets('');
       setWeight('');
-      fetchWorkouts();
-      setStreak(streak + 1);
+      fetchWorkouts(); // Refresh workouts
+      fetchProgress(); // Refresh progress
+      fetchStreak(); // Update streak
+      setMessage('Workout logged successfully!');
     } catch (error) {
+      console.error('Workout submit error:', error);
       setMessage('Failed to save workout');
     }
   };
 
   const fetchWorkouts = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/workouts`, { 
-        headers: { Authorization: token },
-        params: filter
-      });
+      const response = await api.get('/exercise/workouts', { params: filter });
       setWorkouts(response.data);
     } catch (error) {
+      console.error('Fetch workouts error:', error);
       setMessage('Failed to fetch workouts');
     }
-  }, [token, filter, setMessage]);
+  }, [filter, setMessage]);
 
   const fetchRecommendation = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/recommend`, { headers: { Authorization: token } });
+      const response = await api.get('/exercise/grok-recommend');
       setRecommendation(response.data);
     } catch (error) {
+      console.error('Fetch recommendation error:', error);
       setMessage('Failed to fetch recommendation');
     }
-  }, [token, setMessage]);
+  }, [setMessage]);
 
   const fetchProgress = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/progress`, { headers: { Authorization: token } });
+      const response = await api.get('/exercise/progress');
       setProgress(response.data);
     } catch (error) {
+      console.error('Fetch progress error:', error);
       setMessage('Failed to fetch progress');
     }
-  }, [token, setMessage]);
+  }, [setMessage]);
 
   const fetchLibrary = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/library`, { headers: { Authorization: token } });
+      const response = await api.get('/exercise/library');
       setLibrary(response.data);
     } catch (error) {
+      console.error('Fetch library error:', error);
       setMessage('Failed to fetch library');
     }
-  }, [token, setMessage]);
+  }, [setMessage]);
 
   const fetchProfile = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/profile`, { headers: { Authorization: token } });
+      const response = await api.get('/user/profile');
       const { weight, targetCalories, profilePic, _id } = response.data;
       setProfile({
         weight: weight || '',
         targetCalories: targetCalories || '',
-        profilePic: profilePic || ''
+        profilePic: profilePic || '',
       });
       setShowProfilePrompt(!weight || !targetCalories);
       setCurrentUserId(_id);
     } catch (error) {
+      console.error('Fetch profile error:', error);
       setMessage('Failed to fetch profile');
       setShowProfilePrompt(true);
     }
-  }, [token, setMessage]);
+  }, [setMessage]);
 
   const fetchUsers = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/users`, { headers: { Authorization: token } });
+      const response = await api.get('/user/users');
       setUsers(response.data);
     } catch (error) {
+      console.error('Fetch users error:', error);
       setMessage('Failed to fetch users');
     }
-  }, [token, setMessage]);
+  }, [setMessage]);
+
+  const fetchStreak = useCallback(async () => {
+    try {
+      const response = await api.get('/exercise/streak');
+      setStreak(response.data.streak);
+    } catch (error) {
+      console.error('Fetch streak error:', error);
+      setMessage('Failed to fetch streak');
+    }
+  }, [setMessage]);
 
   useEffect(() => {
     if (token) {
@@ -129,61 +148,58 @@ function DashboardPage({ token, setToken, setMessage }) {
       fetchLibrary();
       fetchProfile();
       fetchUsers();
-
-      const interval = setInterval(() => {
-        fetchUsers();
-      }, 10000);
-
+      fetchStreak();
+      const interval = setInterval(fetchUsers, 10000);
       return () => clearInterval(interval);
     }
-  }, [token, fetchWorkouts, fetchRecommendation, fetchProgress, fetchLibrary, fetchProfile, fetchUsers]);
+  }, [token, fetchWorkouts, fetchRecommendation, fetchProgress, fetchLibrary, fetchProfile, fetchUsers, fetchStreak]);
 
   const pageVariants = {
     initial: { opacity: 0, y: 50 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeInOut' } },
-    exit: { opacity: 0, y: -50, transition: { duration: 0.5, ease: 'easeInOut' } }
+    exit: { opacity: 0, y: -50, transition: { duration: 0.5, ease: 'easeInOut' } },
   };
 
   const buttonVariants = {
     hover: { scale: 1.05, boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.2)' },
-    tap: { scale: 0.95 }
+    tap: { scale: 0.95 },
   };
 
   const dialogVariants = {
     hidden: { opacity: 0, scale: 0.8 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: 'easeInOut' } },
-    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.3, ease: 'easeInOut' } }
+    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.3, ease: 'easeInOut' } },
   };
 
   const circleVariants = {
     collapsed: { width: '64px', height: '64px', borderRadius: '50%', padding: 0, transition: { type: 'spring', stiffness: 300, damping: 25 } },
-    expanded: { width: '300px', height: 'auto', borderRadius: '16px', padding: '1.5rem', transition: { type: 'spring', stiffness: 300, damping: 25 } }
+    expanded: { width: '300px', height: 'auto', borderRadius: '16px', padding: '1.5rem', transition: { type: 'spring', stiffness: 300, damping: 25 } },
   };
 
   const allMinimized = isProfileMinimized && isUsersMinimized && !showSpotify && !showCustomize;
 
   return (
-    <motion.div 
-      variants={pageVariants} 
-      initial="initial" 
-      animate="animate" 
-      exit="exit" 
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
       className="w-full min-h-screen bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 flex flex-col md:flex-row p-6 relative"
     >
       {/* Left Sidebar */}
       <div className="w-full md:w-1/4 flex flex-col gap-6">
-        <ProfileSidebar 
-          profile={profile} 
-          setProfile={setProfile} 
-          token={token} 
-          showProfilePrompt={showProfilePrompt} 
-          setShowProfilePrompt={setShowProfilePrompt} 
-          setMessage={setMessage} 
+        <ProfileSidebar
+          profile={profile}
+          setProfile={setProfile}
+          token={token}
+          showProfilePrompt={showProfilePrompt}
+          setShowProfilePrompt={setShowProfilePrompt}
+          setMessage={setMessage}
           setIsMinimized={setIsProfileMinimized}
         />
-        <UsersList 
-          users={users} 
-          currentUserId={currentUserId} 
+        <UsersList
+          users={users}
+          currentUserId={currentUserId}
           setIsMinimized={setIsUsersMinimized}
           token={token}
         />
@@ -211,11 +227,11 @@ function DashboardPage({ token, setToken, setMessage }) {
                 className="w-full mt-4"
               >
                 <h3 className="text-xl font-bold text-green-700 mb-2">Workout Playlist</h3>
-                <iframe 
+                <iframe
                   src="https://open.spotify.com/embed/playlist/37i9dQZF1DX76Wlfdnj7AP"
-                  width="100%" 
-                  height="80" 
-                  frameBorder="0" 
+                  width="100%"
+                  height="80"
+                  frameBorder="0"
                   allow="encrypted-media"
                   allowTransparency="true"
                   title="Spotify Workout Playlist"
@@ -249,12 +265,12 @@ function DashboardPage({ token, setToken, setMessage }) {
               >
                 <h3 className="text-xl font-bold text-blue-700 mb-2">Customize Dashboard</h3>
                 <div className="flex flex-col gap-2">
-                  {Object.keys(showWidgets).map(widget => (
+                  {Object.keys(showWidgets).map((widget) => (
                     <label key={widget} className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={showWidgets[widget]}
-                        onChange={() => setShowWidgets(prev => ({ ...prev, [widget]: !prev[widget] }))}
+                        onChange={() => setShowWidgets((prev) => ({ ...prev, [widget]: !prev[widget] }))}
                         className="form-checkbox h-5 w-5 text-blue-600"
                       />
                       <span>{widget.charAt(0).toUpperCase() + widget.slice(1).replace(/([A-Z])/g, ' $1')}</span>
@@ -285,9 +301,9 @@ function DashboardPage({ token, setToken, setMessage }) {
         </div>
 
         {/* Streaks & Rewards */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           className="bg-white p-4 rounded-lg shadow-lg mb-6"
         >
           <h2 className="text-xl font-bold text-blue-700">Streaks & Rewards</h2>
@@ -296,35 +312,35 @@ function DashboardPage({ token, setToken, setMessage }) {
         </motion.div>
 
         {showWidgets.workoutForm && (
-          <WorkoutForm 
-            exercise={exercise} 
-            setExercise={setExercise} 
-            reps={reps} 
-            setReps={setReps} 
-            sets={sets} 
-            setSets={setSets} 
-            weight={weight} 
-            setWeight={setWeight} 
-            handleWorkoutSubmit={handleWorkoutSubmit} 
+          <WorkoutForm
+            exercise={exercise}
+            setExercise={setExercise}
+            reps={reps}
+            setReps={setReps}
+            sets={sets}
+            setSets={setSets}
+            weight={weight}
+            setWeight={setWeight}
+            handleWorkoutSubmit={handleWorkoutSubmit}
           />
         )}
         {showWidgets.recommendation && <Recommendation recommendation={recommendation} />}
         {showWidgets.progress && <Progress progress={progress} workouts={workouts} />}
         {showWidgets.workoutList && (
-          <WorkoutList 
-            workouts={workouts} 
-            filter={filter} 
-            setFilter={setFilter} 
-            fetchWorkouts={fetchWorkouts} 
-            token={token} 
+          <WorkoutList
+            workouts={workouts}
+            filter={filter}
+            setFilter={setFilter}
+            fetchWorkouts={fetchWorkouts}
+            token={token}
           />
         )}
         {showWidgets.library && <ExerciseLibrary library={library} />}
-        <motion.button 
+        <motion.button
           variants={buttonVariants}
           whileHover="hover"
           whileTap="tap"
-          onClick={() => setToken(null)} 
+          onClick={() => setToken(null)}
           className="bg-red-600 text-white p-3 rounded-lg shadow-lg w-full max-w-xs mx-auto"
         >
           Logout
@@ -363,7 +379,9 @@ function DashboardPage({ token, setToken, setMessage }) {
                   </ul>
                 </div>
               </div>
-              <p className="mt-4 text-center">Contact <a href="mailto:123@gmail.com" className="text-blue-600 underline">123@gmail.com</a> to subscribe!</p>
+              <p className="mt-4 text-center">
+                Contact <a href="mailto:123@gmail.com" className="text-blue-600 underline">123@gmail.com</a> to subscribe!
+              </p>
               <motion.button
                 variants={buttonVariants}
                 whileHover="hover"

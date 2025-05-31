@@ -5,7 +5,7 @@ function WorkoutForm({ exercise, setExercise, reps, setReps, sets, setSets, weig
   return (
     <motion.div 
       initial={{ scale: 0.9 }} 
-      animate={{ scale: 1 }} 
+      animate={{ scale: 1 }} a
       transition={{ duration: 0.3 }} 
       className="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-green-500"
     >
