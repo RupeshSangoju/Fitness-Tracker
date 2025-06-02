@@ -42,10 +42,10 @@ function DashboardPage({ token, setToken }) {
     library: true,
   });
   const [showPremiumDialog, setShowPremiumDialog] = useState(false);
-  //const [videoFile, setVideoFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
   const [cameraResult, setCameraResult] = useState(null);
 
- /* const modalStyles = {
+  const modalStyles = {
     content: {
       top: '50%',
       left: '50%',
@@ -61,7 +61,7 @@ function DashboardPage({ token, setToken }) {
     overlay: {
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
-  }; */
+  };
 
   const handleWorkoutSubmit = async (e) => {
     e.preventDefault();
