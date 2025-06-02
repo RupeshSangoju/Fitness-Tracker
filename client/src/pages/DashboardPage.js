@@ -401,6 +401,11 @@ function DashboardPage({ token, setToken }) {
                   className="w-full p-2 border rounded-lg"
                 />
               </div>
+              {video && (
+                <p className="text-gray-700">
+                  Uploading: <span className="font-semibold">{video.name}</span>
+                </p>
+              )}
               {cameraResult && (
                 <div className="bg-gray-100 p-4 rounded-lg border-l-4 border-blue-500">
                   <p><strong>Exercise:</strong> {cameraResult.exercise}</p>
