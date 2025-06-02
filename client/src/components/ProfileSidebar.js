@@ -2,6 +2,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
+
 const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShowProfilePrompt, setMessage, setIsMinimized }) {
@@ -21,8 +23,8 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
     e.preventDefault();
     try {
       const updatedProfile = { ...profile };
-      await axios.put(`${backendUrl}/profile`, updatedProfile, {
-        headers: { Authorization: token },
+      await axios.put(`${backendUrl}/api/user/profile`, updatedProfile, {
+        headers: { Authorization: `Bearer ${token}` },
       });
       setProfile(updatedProfile);
       setMessage('Profile updated!');
@@ -99,28 +101,28 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
                 <input
                   type="text"
                   placeholder="Name"
-                  value={profile.name}
+                  value={profile.name || ''}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                   className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-blue-50"
                 />
                 <input
                   type="number"
                   placeholder="Weight (kg)"
-                  value={profile.weight}
+                  value={profile.weight || ''}
                   onChange={(e) => setProfile({ ...profile, weight: e.target.value })}
                   className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-blue-50"
                 />
                 <input
                   type="number"
                   placeholder="Target Calories"
-                  value={profile.targetCalories}
+                  value={profile.targetCalories || ''}
                   onChange={(e) => setProfile({ ...profile, targetCalories: e.target.value })}
                   className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-blue-50"
                 />
                 <input
                   type="text"
                   placeholder="Profile Picture URL (e.g., https://example.com/image.jpg)"
-                  value={profile.profilePic}
+                  value={profile.profilePic || ''}
                   onChange={(e) => setProfile({ ...profile, profilePic: e.target.value })}
                   className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-blue-50"
                 />
@@ -136,8 +138,8 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
             ) : (
               <div className="text-gray-700 text-center">
                 <p><span className="font-semibold">Name:</span> {profile.name || 'Not set'}</p>
-                <p><span className="font-semibold">Weight:</span> {profile.weight} kg</p>
-                <p><span className="font-semibold">Target Calories:</span> {profile.targetCalories}</p>
+                <p><span className="font-semibold">Weight:</span> {profile.weight || 'Not set'} kg</p>
+                <p><span className="font-semibold">Target Calories:</span> {profile.targetCalories || 'Not set'}</p>
               </div>
             )}
           </motion.div>
@@ -146,5 +148,20 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
     </motion.div>
   );
 }
+
+ProfileSidebar.propTypes = {
+  profile: PropTypes.shape({
+    name: PropTypes.string,
+    weight: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    targetCalories: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    profilePic: PropTypes.string,
+  }),
+  setProfile: PropTypes.func.isRequired,
+  token: PropTypes.string,
+  showProfilePrompt: PropTypes.bool.isRequired,
+  setShowProfilePrompt: PropTypes.func.isRequired,
+  setMessage: PropTypes.func,
+  setIsMinimized: PropTypes.func.isRequired,
+};
 
 export default ProfileSidebar;

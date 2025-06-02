@@ -1,7 +1,7 @@
-import React,{ useEffect, useRef } from 'react';
+// src/components/Progress.js
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
-
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -19,7 +19,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 function Progress({ progress, workouts }) {
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
-  const [timePeriod, setTimePeriod] = React.useState('day');
+  const [timePeriod, setTimePeriod] = useState('day');
 
   useEffect(() => {
     return () => {
@@ -120,8 +120,9 @@ function Progress({ progress, workouts }) {
         </span>
       </p>
       <div className="mb-4">
-        <label className="mr-2">View by:</label>
+        <label htmlFor="time-period-select" className="mr-2">View by:</label>
         <select
+          id="time-period-select"
           value={timePeriod}
           onChange={(e) => setTimePeriod(e.target.value)}
           className="p-2 border rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none bg-yellow-50"

@@ -42,26 +42,8 @@ function DashboardPage({ token, setToken }) {
     library: true,
   });
   const [showPremiumDialog, setShowPremiumDialog] = useState(false);
-  const [videoFile, setVideoFile] = useState(null);
+  const [video, setVideo] = useState(null);
   const [cameraResult, setCameraResult] = useState(null);
-
-  const modalStyles = {
-    content: {
-      top: '50%',
-      left: '50%',
-      right: 'auto',
-      bottom: 'auto',
-      marginRight: '-50%',
-      transform: 'translate(-50%, -50%)',
-      maxWidth: '500px',
-      width: '90%',
-      padding: '20px',
-      borderRadius: '10px',
-    },
-    overlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-  };
 
   const handleWorkoutSubmit = async (e) => {
     e.preventDefault();
@@ -171,17 +153,17 @@ function DashboardPage({ token, setToken }) {
   const handleVideoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setVideoFile(file);
+    setVideo(file);
     toast.info('Processing video...');
 
     const formData = new FormData();
     formData.append('video', file);
-    formData.append('weight', profile.weight || 75); // Include user weight
+    formData.append('weight', profile.weight || 75);
 
     try {
       const { data } = await api.post('/exercise/detect', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 300000, // 5-minute timeout
+        timeout: 300000,
       });
       toast.success(`Video processed! Calories burned: ${data.calories} kcal`);
       setCameraResult({
@@ -192,10 +174,12 @@ function DashboardPage({ token, setToken }) {
         pushup_reps: data.pushup_reps || 0,
         jumping_jack_reps: data.jumping_jack_reps || 0,
       });
+      setVideo(null);
     } catch (error) {
       console.error('Video upload error:', error);
       toast.error(`Error processing video: ${error.response?.data?.error || error.message}`);
       setCameraResult(null);
+      setVideo(null);
     }
   };
 
@@ -293,7 +277,6 @@ function DashboardPage({ token, setToken }) {
                   height="80"
                   frameBorder="0"
                   allow="encrypted-media"
-                  allowTransparency="true"
                   title="Spotify Workout Playlist"
                 />
               </motion.div>
@@ -377,7 +360,7 @@ function DashboardPage({ token, setToken }) {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white bg-opacity-90 p-6 rounded-xl shadow-lg mb-6"
           >
-            <h2 className="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">Log Your Workout</h2>
             <WorkoutForm
               exercise={exercise}
               setExercise={setExercise}
@@ -422,9 +405,6 @@ function DashboardPage({ token, setToken }) {
                 <div className="bg-gray-100 p-4 rounded-lg border-l-4 border-blue-500">
                   <p><strong>Exercise:</strong> {cameraResult.exercise}</p>
                   <p><strong>Calories Burned:</strong> {cameraResult.calories.toFixed(2)} kcal</p>
-{/*                  <p><strong>Squat Reps:</strong> {cameraResult.squat_reps}</p>
-                  <p><strong>Push-up Reps:</strong> {cameraResult.pushup_reps}</p>
-                  <p><strong>Jumping Jack Reps:</strong> {cameraResult.jumping_jack_reps}</p>  */}
                   <p><strong>Exercise Types:</strong> {cameraResult.exercise_types_count}</p>
                 </div>
               )}
