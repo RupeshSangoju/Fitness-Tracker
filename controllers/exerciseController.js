@@ -3,6 +3,8 @@ const User = require('../models/User');
 const Groq = require('groq-sdk');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const axios = require('axios');
+const FormData = require('form-data');
 
 exports.logExercise = async (req, res) => {
   const { exercise, reps, sets, weight } = req.body;
@@ -153,5 +155,136 @@ exports.getLibrary = async (req, res) => {
   } catch (err) {
     console.error('Library error:', err);
     res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+
+exports.detectExercise = async (req, res) => {
+  console.log('Received request to /api/exercise/detect');
+  if (!req.file) {
+    console.error('No video file provided');
+    return res.status(400).json({ msg: 'No video file provided' });
+  }
+  try {
+    console.log('Fetching user:', req.userId);
+    const user = await User.findById(req.userId);
+    if (!user) {
+      console.error('User not found:', req.userId);
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    const formData = new FormData();
+    formData.append('video', req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype
+    });
+    formData.append('weight', user.profile.weight || 75);
+    console.log('Sending to Python API with weight:', user.profile.weight || 75);
+
+    const response = await axios.post('http://localhost:5001/detect', formData, {
+      headers: { ...formData.getHeaders() },
+      timeout: 300000, // 5min timeout
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
+
+    console.log('Python API response:', response.data);
+    res.json(response.data);
+  } catch (err) {
+    console.error('Exercise detection error:', err.message, err.response?.data || err.stack);
+    res.status(err.response?.status || 500).json({
+      msg: 'Error processing video',
+      error: err.response?.data?.error || err.message
+    });
+  }
+};
+
+exports.detectFrame = async (req, res) => {
+  console.log('Received request to /api/exercise/detect-frame');
+  if (!req.file) {
+    console.error('No frame provided');
+    return res.status(400).json({ msg: 'No frame provided' });
+  }
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      console.error('User not found:', req.userId);
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    const formData = new FormData();
+    formData.append('frame', req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype
+    });
+    formData.append('weight', user.profile.weight || 75);
+    console.log('Sending frame to Python API');
+
+    const response = await axios.post('http://localhost:5001/detect-frame', formData, {
+      headers: { ...formData.getHeaders() },
+      timeout: 20000, // 20s timeout
+    });
+
+    console.log('Python frame response:', response.data);
+    res.json(response.data);
+  } catch (err) {
+    console.error('Frame detection error:', err.message, err.response?.data || err.stack);
+    res.status(err.response?.status || 500).json({
+      msg: 'Error processing frame',
+      error: err.response?.data?.error || err.message
+    });
+  }
+};
+// In controllers/exerciseController.js
+exports.liveDetect = async (req, res) => {
+  console.log('Received request to /api/exercise/live');
+  if (!req.body.frame) {
+    console.error('No frame provided');
+    return res.status(400).json({ msg: 'No frame provided' });
+  }
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      console.error('User not found:', req.userId);
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    const formData = new FormData();
+    formData.append('frame', req.body.frame); // Base64-encoded frame
+    formData.append('session_id', req.body.session_id);
+    formData.append('weight', user.profile.weight || 75);
+
+    const response = await axios.post('http://localhost:5001/live', formData, {
+      headers: { ...formData.getHeaders() },
+      timeout: 20000,
+    });
+
+    console.log('Python live response:', response.data);
+    res.json(response.data);
+  } catch (err) {
+    console.error('Live detection error:', err.message, err.response?.data || err.stack);
+    res.status(err.response?.status || 500).json({
+      msg: 'Error processing live frame',
+      error: err.response?.data?.error || err.message,
+    });
+  }
+};
+
+exports.stopLive = async (req, res) => {
+  console.log('Received request to /api/exercise/stop_live');
+  try {
+    const formData = new FormData();
+    formData.append('session_id', req.body.session_id);
+
+    const response = await axios.post('http://localhost:5001/stop_live', formData, {
+      headers: { ...formData.getHeaders() },
+      timeout: 20000,
+    });
+
+    console.log('Python stop live response:', response.data);
+    res.json(response.data);
+  } catch (err) {
+    console.error('Stop live error:', err.message, err.response?.data || err.stack);
+    res.status(err.response?.status || 500).json({
+      msg: 'Error stopping live session',
+      error: err.response?.data?.error || err.message,
+    });
   }
 };

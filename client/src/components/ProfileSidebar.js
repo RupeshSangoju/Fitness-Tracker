@@ -1,8 +1,8 @@
+// src/components/ProfileSidebar.js
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
-const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
-
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShowProfilePrompt, setMessage, setIsMinimized }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -22,7 +22,7 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
     try {
       const updatedProfile = { ...profile };
       await axios.put(`${backendUrl}/profile`, updatedProfile, {
-        headers: { Authorization: token }
+        headers: { Authorization: token },
       });
       setProfile(updatedProfile);
       setMessage('Profile updated!');
@@ -34,25 +34,25 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
   };
 
   const sidebarVariants = {
-    collapsed: { 
-      width: '64px', 
-      height: '64px', 
-      borderRadius: '50%', 
-      padding: 0, 
-      transition: { type: 'spring', stiffness: 300, damping: 25 } 
+    collapsed: {
+      width: '64px',
+      height: '64px',
+      borderRadius: '50%',
+      padding: 0,
+      transition: { type: 'spring', stiffness: 300, damping: 25 },
     },
-    expanded: { 
-      width: '100%', 
-      height: 'auto', 
-      borderRadius: '16px', 
-      padding: '1.5rem', 
-      transition: { type: 'spring', stiffness: 300, damping: 25 } 
-    }
+    expanded: {
+      width: '100%',
+      height: 'auto',
+      borderRadius: '16px',
+      padding: '1.5rem',
+      transition: { type: 'spring', stiffness: 300, damping: 25 },
+    },
   };
 
   const contentVariants = {
     hidden: { opacity: 0, y: -20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeInOut' } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeInOut' } },
   };
 
   const placeholderImage = 'https://placehold.co/64x64?text=No+Image';
@@ -97,6 +97,13 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
             {showProfilePrompt ? (
               <form onSubmit={handleProfileSubmit} className="flex flex-col gap-4 w-full">
                 <input
+                  type="text"
+                  placeholder="Name"
+                  value={profile.name}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-blue-50"
+                />
+                <input
                   type="number"
                   placeholder="Weight (kg)"
                   value={profile.weight}
@@ -128,6 +135,7 @@ function ProfileSidebar({ profile, setProfile, token, showProfilePrompt, setShow
               </form>
             ) : (
               <div className="text-gray-700 text-center">
+                <p><span className="font-semibold">Name:</span> {profile.name || 'Not set'}</p>
                 <p><span className="font-semibold">Weight:</span> {profile.weight} kg</p>
                 <p><span className="font-semibold">Target Calories:</span> {profile.targetCalories}</p>
               </div>

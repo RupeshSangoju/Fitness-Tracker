@@ -1,0 +1,8 @@
+flask 
+mediapipe==0.10.14 
+opencv-python-headless 
+numpy 
+scikit-learn 
+joblib
+flask-cors 
+pillow

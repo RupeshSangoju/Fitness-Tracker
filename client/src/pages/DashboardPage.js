@@ -1,6 +1,10 @@
+// src/pages/DashboardPage.js
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '../utils/api'; // Use new api instance
+import Modal from 'react-modal';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import api from '../utils/api';
 import ProfileSidebar from '../components/ProfileSidebar';
 import WorkoutForm from '../components/WorkoutForm';
 import Recommendation from '../components/Recommendation';
@@ -9,7 +13,9 @@ import WorkoutList from '../components/WorkoutList';
 import ExerciseLibrary from '../components/ExerciseLibrary';
 import UsersList from '../components/UsersList';
 
-function DashboardPage({ token, setToken, setMessage }) {
+function DashboardPage({ token, setToken }) {
+  Modal.setAppElement('#root');
+
   const [exercise, setExercise] = useState('');
   const [reps, setReps] = useState('');
   const [sets, setSets] = useState('');
@@ -36,29 +42,51 @@ function DashboardPage({ token, setToken, setMessage }) {
     library: true,
   });
   const [showPremiumDialog, setShowPremiumDialog] = useState(false);
+  const [videoFile, setVideoFile] = useState(null);
+  const [cameraResult, setCameraResult] = useState(null);
+
+  const modalStyles = {
+    content: {
+      top: '50%',
+      left: '50%',
+      right: 'auto',
+      bottom: 'auto',
+      marginRight: '-50%',
+      transform: 'translate(-50%, -50%)',
+      maxWidth: '500px',
+      width: '90%',
+      padding: '20px',
+      borderRadius: '10px',
+    },
+    overlay: {
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+  };
 
   const handleWorkoutSubmit = async (e) => {
     e.preventDefault();
     if (!exercise || !reps || !sets || reps < 0 || sets < 0 || (weight && weight < 0)) {
-      setMessage('Please enter valid workout details');
+      toast.error('Please enter valid workout details');
       return;
     }
     try {
-      await api.post(
-        '/exercise/log',
-        { exercise, reps: Number(reps), sets: Number(sets), weight: weight ? Number(weight) : undefined },
-      );
+      await api.post('/exercise/log', {
+        exercise,
+        reps: Number(reps),
+        sets: Number(sets),
+        weight: weight ? Number(weight) : undefined,
+      });
       setExercise('');
       setReps('');
       setSets('');
       setWeight('');
-      fetchWorkouts(); // Refresh workouts
-      fetchProgress(); // Refresh progress
-      fetchStreak(); // Update streak
-      setMessage('Workout logged successfully!');
+      fetchWorkouts();
+      fetchProgress();
+      fetchStreak();
+      toast.success('Workout logged successfully!');
     } catch (error) {
       console.error('Workout submit error:', error);
-      setMessage('Failed to save workout');
+      toast.error('Failed to save workout');
     }
   };
 
@@ -68,9 +96,9 @@ function DashboardPage({ token, setToken, setMessage }) {
       setWorkouts(response.data);
     } catch (error) {
       console.error('Fetch workouts error:', error);
-      setMessage('Failed to fetch workouts');
+      toast.error('Failed to fetch workouts');
     }
-  }, [filter, setMessage]);
+  }, [filter]);
 
   const fetchRecommendation = useCallback(async () => {
     try {
@@ -78,9 +106,9 @@ function DashboardPage({ token, setToken, setMessage }) {
       setRecommendation(response.data);
     } catch (error) {
       console.error('Fetch recommendation error:', error);
-      setMessage('Failed to fetch recommendation');
+      toast.error('Failed to fetch recommendation');
     }
-  }, [setMessage]);
+  }, []);
 
   const fetchProgress = useCallback(async () => {
     try {
@@ -88,9 +116,9 @@ function DashboardPage({ token, setToken, setMessage }) {
       setProgress(response.data);
     } catch (error) {
       console.error('Fetch progress error:', error);
-      setMessage('Failed to fetch progress');
+      toast.error('Failed to fetch progress');
     }
-  }, [setMessage]);
+  }, []);
 
   const fetchLibrary = useCallback(async () => {
     try {
@@ -98,9 +126,9 @@ function DashboardPage({ token, setToken, setMessage }) {
       setLibrary(response.data);
     } catch (error) {
       console.error('Fetch library error:', error);
-      setMessage('Failed to fetch library');
+      toast.error('Failed to fetch library');
     }
-  }, [setMessage]);
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -115,10 +143,10 @@ function DashboardPage({ token, setToken, setMessage }) {
       setCurrentUserId(_id);
     } catch (error) {
       console.error('Fetch profile error:', error);
-      setMessage('Failed to fetch profile');
+      toast.error('Failed to fetch profile');
       setShowProfilePrompt(true);
     }
-  }, [setMessage]);
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -126,9 +154,9 @@ function DashboardPage({ token, setToken, setMessage }) {
       setUsers(response.data);
     } catch (error) {
       console.error('Fetch users error:', error);
-      setMessage('Failed to fetch users');
+      toast.error('Failed to fetch users');
     }
-  }, [setMessage]);
+  }, []);
 
   const fetchStreak = useCallback(async () => {
     try {
@@ -136,9 +164,40 @@ function DashboardPage({ token, setToken, setMessage }) {
       setStreak(response.data.streak);
     } catch (error) {
       console.error('Fetch streak error:', error);
-      setMessage('Failed to fetch streak');
+      toast.error('Failed to fetch streak');
     }
-  }, [setMessage]);
+  }, []);
+
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setVideoFile(file);
+    toast.info('Processing video...');
+
+    const formData = new FormData();
+    formData.append('video', file);
+    formData.append('weight', profile.weight || 75); // Include user weight
+
+    try {
+      const { data } = await api.post('/exercise/detect', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000, // 5-minute timeout
+      });
+      toast.success(`Video processed! Calories burned: ${data.calories} kcal`);
+      setCameraResult({
+        exercise: data.current_state || 'None',
+        calories: data.calories || 0,
+        exercise_types_count: data.exercise_types_count || 0,
+        squat_reps: data.squat_reps || 0,
+        pushup_reps: data.pushup_reps || 0,
+        jumping_jack_reps: data.jumping_jack_reps || 0,
+      });
+    } catch (error) {
+      console.error('Video upload error:', error);
+      toast.error(`Error processing video: ${error.response?.data?.error || error.message}`);
+      setCameraResult(null);
+    }
+  };
 
   useEffect(() => {
     if (token) {
@@ -186,6 +245,7 @@ function DashboardPage({ token, setToken, setMessage }) {
       exit="exit"
       className="w-full min-h-screen bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 flex flex-col md:flex-row p-6 relative"
     >
+      <ToastContainer position="top-right" autoClose={3000} />
       {/* Left Sidebar */}
       <div className="w-full md:w-1/4 flex flex-col gap-6">
         <ProfileSidebar
@@ -194,7 +254,7 @@ function DashboardPage({ token, setToken, setMessage }) {
           token={token}
           showProfilePrompt={showProfilePrompt}
           setShowProfilePrompt={setShowProfilePrompt}
-          setMessage={setMessage}
+          setMessage={(msg) => toast.info(msg)}
           setIsMinimized={setIsProfileMinimized}
         />
         <UsersList
@@ -312,17 +372,24 @@ function DashboardPage({ token, setToken, setMessage }) {
         </motion.div>
 
         {showWidgets.workoutForm && (
-          <WorkoutForm
-            exercise={exercise}
-            setExercise={setExercise}
-            reps={reps}
-            setReps={setReps}
-            sets={sets}
-            setSets={setSets}
-            weight={weight}
-            setWeight={setWeight}
-            handleWorkoutSubmit={handleWorkoutSubmit}
-          />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white bg-opacity-90 p-6 rounded-xl shadow-lg mb-6"
+          >
+            <h2 className="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <WorkoutForm
+              exercise={exercise}
+              setExercise={setExercise}
+              reps={reps}
+              setReps={setReps}
+              sets={sets}
+              setSets={setSets}
+              weight={weight}
+              setWeight={setWeight}
+              handleWorkoutSubmit={handleWorkoutSubmit}
+            />
+          </motion.div>
         )}
         {showWidgets.recommendation && <Recommendation recommendation={recommendation} />}
         {showWidgets.progress && <Progress progress={progress} workouts={workouts} />}
@@ -335,12 +402,45 @@ function DashboardPage({ token, setToken, setMessage }) {
             token={token}
           />
         )}
+        {showWidgets.workoutForm && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white bg-opacity-90 p-6 rounded-xl shadow-lg mb-6"
+          >
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">Exercise Detection</h2>
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoUpload}
+                  className="w-full p-2 border rounded-lg"
+                />
+              </div>
+              {cameraResult && (
+                <div className="bg-gray-100 p-4 rounded-lg border-l-4 border-blue-500">
+                  <p><strong>Exercise:</strong> {cameraResult.exercise}</p>
+                  <p><strong>Calories Burned:</strong> {cameraResult.calories.toFixed(2)} kcal</p>
+{/*                  <p><strong>Squat Reps:</strong> {cameraResult.squat_reps}</p>
+                  <p><strong>Push-up Reps:</strong> {cameraResult.pushup_reps}</p>
+                  <p><strong>Jumping Jack Reps:</strong> {cameraResult.jumping_jack_reps}</p>  */}
+                  <p><strong>Exercise Types:</strong> {cameraResult.exercise_types_count}</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
         {showWidgets.library && <ExerciseLibrary library={library} />}
         <motion.button
           variants={buttonVariants}
           whileHover="hover"
           whileTap="tap"
-          onClick={() => setToken(null)}
+          onClick={() => {
+            setToken(null);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }}
           className="bg-red-600 text-white p-3 rounded-lg shadow-lg w-full max-w-xs mx-auto"
         >
           Logout
@@ -371,16 +471,15 @@ function DashboardPage({ token, setToken, setMessage }) {
                 <div>
                   <h3 className="font-semibold text-purple-600">Premium Version</h3>
                   <ul className="list-disc pl-4">
+                    <li>Live Camera Calorie Count</li>
                     <li>Advanced Analytics</li>
                     <li>Expert Guidance</li>
-                    <li>Custom Plans</li>
                     <li>Ad-Free</li>
-                    <li>E-commerce Access</li>
                   </ul>
                 </div>
               </div>
               <p className="mt-4 text-center">
-                Contact <a href="mailto:123@gmail.com" className="text-blue-600 underline">123@gmail.com</a> to subscribe!
+                Contact <a href="mailto:123@gmail.com" className="text-blue-600 underline">rupeshbabu.sangoju@gmail.com</a> to subscribe!
               </p>
               <motion.button
                 variants={buttonVariants}
