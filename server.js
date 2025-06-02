@@ -11,7 +11,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'https://thunderous-tiramisu-df1e37.netlify.app/'],
   credentials: true,
 }));
 app.use('/Uploads', express.static(path.join(__dirname, 'Uploads')));
