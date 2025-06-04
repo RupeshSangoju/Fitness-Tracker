@@ -9,9 +9,12 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
+app.options('*', cors()); // Handle preflight requests for all routes
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://thunderous-tiramisu-df1e37.netlify.app/'],
+  origin: ['http://localhost:3000', 'https://thunderous-tiramisu-df1e37.netlify.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Explicitly allow methods
+  allowedHeaders: ['Content-Type', 'x-auth-token'],
   credentials: true,
 }));
 app.use('/Uploads', express.static(path.join(__dirname, 'Uploads')));
