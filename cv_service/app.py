@@ -45,7 +45,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
 
 # Load RandomForest model
-model_path = os.path.join(os.path.dirname(__file__), r'C:\Users\rupes\Fitness-Tracker\cv_service\exercise_classifier.pkl')
+model_path = os.path.join(os.path.dirname(__file__),'exercise_classifier.pkl')
 try:
     logger.info(f"Loading model from {model_path}")
     model = joblib.load(model_path)
