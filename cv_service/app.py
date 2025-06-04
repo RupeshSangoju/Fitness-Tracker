@@ -20,16 +20,15 @@ warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf.
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.utils.validation")
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Suppress TensorFlow oneDNN warnings
 
-# Setup logging before using logger
+# Setup logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Load environment variables from cv_service/.env
+# Load environment variables
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 logger.info(f"Looking for .env file at: {env_path}")
-
 if not os.path.exists(env_path):
-    logger.error(f".env file not found at {env_path}")
+    logger.warning(f".env file not found at {env_path}, relying on environment variables")
 load_dotenv(dotenv_path=env_path, override=True)
 logger.info(f"Loaded .env file: {os.path.exists(env_path)}")
 logger.info(f"PORT from env: {os.environ.get('PORT')}")
@@ -45,9 +44,12 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
 
 # Load RandomForest model
-model_path = os.path.join(os.path.dirname(__file__),'exercise_classifier.pkl')
+model_path = os.path.join(os.path.dirname(__file__), 'exercise_classifier.pkl')
+logger.info(f"Loading model from {model_path}")
+if not os.path.exists(model_path):
+    logger.error(f"Model file not found at {model_path}")
+    raise FileNotFoundError(f"Model file not found at {model_path}")
 try:
-    logger.info(f"Loading model from {model_path}")
     model = joblib.load(model_path)
     logger.info("Model loaded successfully")
     logger.info(f"Model classes: {model.classes_}")
@@ -55,9 +57,16 @@ except Exception as e:
     logger.error(f"Failed to load model: {e}")
     raise
 
-# Initialize MediaPipe
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
+# Lazy initialization for MediaPipe
+mp_pose = None
+mp_drawing = None
+
+def init_mediapipe():
+    global mp_pose, mp_drawing
+    if mp_pose is None or mp_drawing is None:
+        logger.info("Initializing MediaPipe")
+        mp_pose = mp.solutions.pose
+        mp_drawing = mp.solutions.drawing_utils
 
 def calculate_angle(p1, p2, p3):
     p1, p2, p3 = np.array(p1), np.array(p2), np.array(p3)
@@ -108,7 +117,8 @@ class Counter:
         return self.reps
 
 def process_frame(frame, calorie_tracker, exercise_types, counters, met_values, weight_kg):
-    with mp_pose.Pose(min_detection_confidence=1.0, min_tracking_confidence=1.0) as pose:
+    init_mediapipe()
+    with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7) as pose:
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = pose.process(frame_rgb)
         state = 'Idle'
@@ -140,6 +150,7 @@ def process_frame(frame, calorie_tracker, exercise_types, counters, met_values, 
         }
 
 def process_video(video_path, weight_kg=75):
+    init_mediapipe()
     cap = None
     out = None
     try:
@@ -160,7 +171,7 @@ def process_video(video_path, weight_kg=75):
             'Pull-ups': Counter(),
             'Russian Twists': Counter()
         }
-        calorie_tracker = {'calories': {}, 'start_time': None}
+        calorie_tracker = {'calories': 0.0, 'start_time': None}
         exercise_types = set()
 
         cap = cv2.VideoCapture(video_path)
@@ -176,10 +187,10 @@ def process_video(video_path, weight_kg=75):
         output_path = os.path.join(app.config['UPLOAD_FOLDER'], 'output.mp4')
         out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
         if not out.isOpened():
-            raise RuntimeError("Could not create output video")
+            raise RuntimeError(f"Could not create output video")
 
         frame_count = 0
-        with mp_pose.Pose(min_detection_confidence=1.0, min_tracking_confidence=1.0) as pose:
+        with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7) as pose:
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
@@ -303,7 +314,7 @@ def process_live_frame():
             app.live_state = {}
         if session_id not in app.live_state:
             app.live_state[session_id] = {
-                'calorie_tracker': {'calories': 0, 'start_time': None},
+                'calorie_tracker': {'calories': 0.0, 'start_time': None},
                 'exercise_types': set(),
                 'counters': {
                     'Squats': Counter(),
