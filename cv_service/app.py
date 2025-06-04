@@ -13,27 +13,42 @@ import warnings
 import base64
 from io import BytesIO
 from PIL import Image
+from dotenv import load_dotenv
 
 # Suppress warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf.symbol_database")
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.utils.validation")
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Suppress TensorFlow oneDNN warnings
 
-app = Flask(__name__, static_folder='public')
-# Simplified CORS for all routes
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://fitness-tracker-5zbc.onrender.com"]}})
-UPLOAD_FOLDER = 'Uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
-
-# Setup logging
+# Setup logging before using logger
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Load environment variables from cv_service/.env
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+logger.info(f"Looking for .env file at: {env_path}")
+
+if not os.path.exists(env_path):
+    logger.error(f".env file not found at {env_path}")
+load_dotenv(dotenv_path=env_path, override=True)
+logger.info(f"Loaded .env file: {os.path.exists(env_path)}")
+logger.info(f"PORT from env: {os.environ.get('PORT')}")
+logger.info(f"UPLOAD_FOLDER from env: {os.environ.get('UPLOAD_FOLDER')}")
+
+# Initialize Flask app
+app = Flask(__name__, static_folder='public')
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://fitness-tracker-5zbc.onrender.com"]}})
+
+# Configure upload folder and max content length
+app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'Uploads')
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
+
 # Load RandomForest model
+model_path = os.path.join(os.path.dirname(__file__), r'C:\Users\rupes\Fitness-Tracker\cv_service\exercise_classifier.pkl')
 try:
-    model = joblib.load('exercise_classifier.pkl')
+    logger.info(f"Loading model from {model_path}")
+    model = joblib.load(model_path)
     logger.info("Model loaded successfully")
     logger.info(f"Model classes: {model.classes_}")
 except Exception as e:
@@ -75,7 +90,7 @@ def detect_state(angles):
         angles_array = np.array(angles).reshape(1, -1)
         return model.predict(angles_array)[0]
     except Exception as e:
-        logger.error(f"Error predicting state: {e}")
+        logger.error(f"Error detecting state: {e}")
         return 'Idle'
 
 class Counter:
@@ -86,14 +101,14 @@ class Counter:
 
     def update(self, state, current_time):
         if state != self.prev_state and current_time - (self.last_transition_time or 0) > 0.5:
-            if state in ['Squats', 'Push Ups', 'Jumping Jacks', 'Pull ups', 'Russian twists'] and self.prev_state == 'Idle':
+            if state in ['Squats', 'Push Ups', 'Jumping Jacks', 'Pull-ups', 'Russian Twists'] and self.prev_state == 'Idle':
                 self.reps += 1
                 self.last_transition_time = current_time
         self.prev_state = state
         return self.reps
 
 def process_frame(frame, calorie_tracker, exercise_types, counters, met_values, weight_kg):
-    with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7) as pose:
+    with mp_pose.Pose(min_detection_confidence=1.0, min_tracking_confidence=1.0) as pose:
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = pose.process(frame_rgb)
         state = 'Idle'
@@ -133,38 +148,38 @@ def process_video(video_path, weight_kg=75):
 
         met_values = {
             'Squats': 5,
-            'Push Ups': 8,
+            'Push Ups': 2,
             'Jumping Jacks': 8,
-            'Pull ups': 6,
-            'Russian twists': 4
+            'Pull-ups': 6,
+            'Russian Twists': 4
         }
         counters = {
             'Squats': Counter(),
             'Push Ups': Counter(),
             'Jumping Jacks': Counter(),
-            'Pull ups': Counter(),
-            'Russian twists': Counter()
+            'Pull-ups': Counter(),
+            'Russian Twists': Counter()
         }
-        calorie_tracker = {'calories': 0, 'start_time': None}
+        calorie_tracker = {'calories': {}, 'start_time': None}
         exercise_types = set()
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             raise RuntimeError(f"Could not open video {video_path}")
 
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 10000
         logger.info(f"Video: {video_path}, FPS: {fps}, Resolution: {width}x{height}, Frames: {total_frames}")
 
-        output_path = 'Uploads/output.mp4'
+        output_path = os.path.join(app.config['UPLOAD_FOLDER'], 'output.mp4')
         out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
         if not out.isOpened():
             raise RuntimeError("Could not create output video")
 
         frame_count = 0
-        with mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.7) as pose:
+        with mp_pose.Pose(min_detection_confidence=1.0, min_tracking_confidence=1.0) as pose:
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
@@ -222,15 +237,20 @@ def process_video(video_path, weight_kg=75):
             cap.release()
         if out is not None:
             out.release()
-        if os.path.exists('Uploads/output.mp4'):
+        if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], 'output.mp4')):
             try:
-                os.remove('Uploads/output.mp4')
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], 'output.mp4'))
             except Exception as e:
                 logger.error(f"Error removing output.mp4: {e}")
 
 @app.route('/')
 def serve_index():
     return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/health')
+def health_check():
+    logger.info("Health check endpoint called")
+    return jsonify({'status': 'ok'})
 
 @app.route('/detect', methods=['POST', 'OPTIONS'])
 def detect_exercise():
@@ -270,16 +290,14 @@ def process_live_frame():
     logger.info("Received live frame")
     try:
         data = request.form.get('frame')
-        weight_kg = float(request.form.get('weight', 75))  # Use weight from request
+        weight_kg = float(request.form.get('weight', 75))
         if not data:
             return jsonify({'error': 'No frame data provided'}), 400
 
-        # Decode base64 image
         img_data = base64.b64decode(data.split(',')[1])
         img = Image.open(BytesIO(img_data))
         frame = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
-        # Initialize session state
         session_id = request.form.get('session_id', str(time.time()))
         if not hasattr(app, 'live_state'):
             app.live_state = {}
@@ -291,15 +309,15 @@ def process_live_frame():
                     'Squats': Counter(),
                     'Push Ups': Counter(),
                     'Jumping Jacks': Counter(),
-                    'Pull ups': Counter(),
-                    'Russian twists': Counter()
+                    'Pull-ups': Counter(),
+                    'Russian Twists': Counter()
                 },
                 'met_values': {
                     'Squats': 5,
                     'Push Ups': 8,
                     'Jumping Jacks': 8,
-                    'Pull ups': 6,
-                    'Russian twists': 4
+                    'Pull-ups': 6,
+                    'Russian Twists': 4
                 }
             }
 
@@ -345,4 +363,5 @@ def stop_live():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
-    app.run(host='0.0.0.0', port=port,debug=True)
+    logger.info(f"Starting Flask app on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=False)
