@@ -2,7 +2,7 @@
 
 A modern, full-stack web application for tracking workouts, monitoring fitness progress, and enhancing your exercise experience with AI-powered features. Built with React, Node.js, MongoDB, and a Python-based computer vision service, Fitness Tracker offers a user-friendly dashboard to log workouts, analyze progress, detect exercises via video, and enjoy motivational features like Spotify playlists and streaks.
 
-🌐 **Live Demo**: [https://fitness-trackery.netlify.app](https://fitness-trackery.netlify.app)
+🌐 **Live Demo**: [https://thunderous-tiramisu-df1e37.netlify.app/](https://thunderous-tiramisu-df1e37.netlify.app/)
 
 ## Features
 
